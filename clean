@@ -1,0 +1,16 @@
+cd ffmpeg_build
+rm -rf *
+cd ../dav1d
+rm -rf build
+cd ../fdk-aac
+make clean
+cd ../FFmpeg
+rm ffmpeg ffplay ffprobe
+cd ../libvpx
+make clean
+cd ../opus
+make clean
+cd ../SVT-AV1
+rm -rf build
+cd ../x264
+make clean

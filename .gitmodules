@@ -1,0 +1,27 @@
+[submodule "FFmpeg"]
+	path = FFmpeg
+	url = https://github.com/FFmpeg/FFmpeg
+[submodule "dav1d"]
+	path = dav1d
+	url = https://code.videolan.org/videolan/dav1d.git
+[submodule "fdk-aac"]
+	path = fdk-aac
+	url = https://github.com/mstorsjo/fdk-aac
+[submodule "aom"]
+	path = aom
+	url = https://aomedia.googlesource.com/aom
+[submodule "libvpx"]
+	path = libvpx
+	url = https://chromium.googlesource.com/webm/libvpx.git
+[submodule "opus"]
+	path = opus
+	url = https://github.com/xiph/opus.git
+[submodule "SVT-AV1"]
+	path = SVT-AV1
+	url = https://gitlab.com/AOMediaCodec/SVT-AV1.git
+[submodule "x264"]
+	path = x264
+	url = https://code.videolan.org/videolan/x264.git
+[submodule "x265_git"]
+	path = x265_git
+	url = https://bitbucket.org/multicoreware/x265_git

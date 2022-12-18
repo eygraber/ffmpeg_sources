@@ -1,0 +1,126 @@
+sudo apt-get update -qq && sudo apt-get -y install \
+  autoconf \
+  automake \
+  build-essential \
+  cmake \
+  git-core \
+  libass-dev \
+  libfreetype6-dev \
+  libgnutls28-dev \
+  libmp3lame-dev \
+  libsdl2-dev \
+  libtool \
+  libva-dev \
+  libvdpau-dev \
+  libvorbis-dev \
+  libxcb1-dev \
+  libxcb-shm0-dev \
+  libxcb-xfixes0-dev \
+  meson \
+  ninja-build \
+  pkg-config \
+  texinfo \
+  wget \
+  yasm \
+  zlib1g-dev \
+  libunistring-dev \
+  meson \
+  yasm \
+  nasm
+  
+FFMPEG=$(pwd)
+
+cd x264 && \
+PATH="$HOME/bin:$PATH" PKG_CONFIG_PATH="$FFMPEG/ffmpeg_build/lib/pkgconfig" ./configure --prefix="$FFMPEG/ffmpeg_build" --bindir="$HOME/bin" --enable-static --enable-pic && \
+PATH="$HOME/bin:$PATH" make && \
+make install
+
+sudo apt-get install libnuma-dev && \
+cd $FFMPEG/x265_git/build/linux && \
+PATH="$HOME/bin:$PATH" PKG_CONFIG_PATH="$FFMPEG/ffmpeg_build/lib/pkgconfig" ./multilib.sh && \
+mkdir -p $FFMPEG/ffmpeg_build/bin && \
+mkdir -p $FFMPEG/ffmpeg_build/include && \
+mkdir -p $FFMPEG/ffmpeg_build/lib && \
+mkdir -p $FFMPEG/ffmpeg_build/lib/pkgconfig && \
+sed -i "1s|.*|prefix=$FFMPEG/ffmpeg_build|" 8bit/x265.pc
+mv 8bit/x265 $FFMPEG/ffmpeg_build/bin/x265 && \
+mv 8bit/libx265.a $FFMPEG/ffmpeg_build/lib/libx265.a && \
+mv 8bit/x265.pc $FFMPEG/ffmpeg_build/lib/pkgconfig/x265.pc && \
+mv 8bit/x265_config.h $FFMPEG/ffmpeg_build/include/x265_config.h && \
+cp ../../source/x265.h $FFMPEG/ffmpeg_build/include/x265.h
+
+cd $FFMPEG/fdk-aac && \
+autoreconf -fiv && \
+./configure --prefix="$FFMPEG/ffmpeg_build" --disable-shared && \
+make && \
+make install
+
+cd $FFMPEG/aom && \
+mkdir -p aom_build && \
+cd aom_build && \
+PATH="$HOME/bin:$PATH" cmake -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="$FFMPEG/ffmpeg_build" -DENABLE_TESTS=OFF -DENABLE_NASM=on .. && \
+PATH="$HOME/bin:$PATH" make && \
+make install
+
+cd $FFMPEG/dav1d && \
+mkdir -p build && \
+cd build && \
+meson setup -Denable_tools=false -Denable_tests=false --default-library=static .. --prefix "$FFMPEG/ffmpeg_build" --libdir="lib" && \
+ninja && \
+ninja install
+
+cd $FFMPEG/SVT-AV1 && \
+mkdir -p build && \
+cd build && \
+PATH="$HOME/bin:$PATH" cmake -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="$FFMPEG/ffmpeg_build" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF .. && \
+PATH="$HOME/bin:$PATH" make && \
+make install
+
+cd $FFMPEG/opus && \
+./autogen.sh && \
+./configure --prefix="$FFMPEG/ffmpeg_build" --disable-shared && \
+make && \
+make install
+
+cd $FFMPEG/libvpx && \
+PATH="$HOME/bin:$PATH" ./configure --prefix="$FFMPEG/ffmpeg_build" --disable-examples --disable-unit-tests --enable-vp9-highbitdepth --as=yasm && \
+PATH="$HOME/bin:$PATH" make && \
+make install
+
+cd $FFMPEG/FFmpeg && \
+PATH="$HOME/bin:$PATH" PKG_CONFIG_PATH="$FFMPEG/ffmpeg_build/lib/pkgconfig" ./configure \
+  --prefix="../ffmpeg_build" \
+  --pkg-config-flags="--static" \
+  --extra-cflags="-I$FFMPEG/ffmpeg_build/include" \
+  --extra-ldflags="-L$FFMPEG/ffmpeg_build/lib" \
+  --extra-libs="-lpthread -lm" \
+  --ld="g++" \
+  --bindir="$HOME/bin" \
+  --disable-debug \
+  --enable-gpl \
+  --enable-gnutls \
+  --enable-libaom \
+  --enable-libass \
+  --enable-libfdk-aac \
+  --enable-libfreetype \
+  --enable-libmp3lame \
+  --enable-libopus \
+  --enable-libsvtav1 \
+  --enable-libdav1d \
+  --enable-libvorbis \
+  --enable-libvpx \
+  --enable-libx264 \
+  --enable-libx265 \
+  --enable-nonfree && \
+PATH="$HOME/bin:$PATH" make && \
+make install && \
+hash -r && \
+rm ffmpeg_g ffplay_g ffprobe_g && \
+cd $FFMPEG/FFmpeg && \
+mv ffmpeg .. && \
+mv ffprobe .. && \
+mv ffplay .. && \
+cd $FFMPEG/aom && \
+rm -rf aom_build && \
+cd $FFMPEG/x265_git && \
+git clean -df
