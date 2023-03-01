@@ -4,6 +4,7 @@ cd ../dav1d
 rm -rf build
 cd ../fdk-aac
 make clean
+rm configure~
 cd ../FFmpeg
 rm ffmpeg ffplay ffprobe
 cd ../libvpx
