@@ -87,6 +87,9 @@ PATH="$HOME/bin:$PATH" ./configure --prefix="$FFMPEG/ffmpeg_build" --disable-exa
 PATH="$HOME/bin:$PATH" make && \
 make install
 
+mkdir -p $FFMPEG/outputs
+mkdir -p $FFMPEG/debuggable_outputs
+
 cd $FFMPEG/FFmpeg && \
 PATH="$HOME/bin:$PATH" PKG_CONFIG_PATH="$FFMPEG/ffmpeg_build/lib/pkgconfig" ./configure \
   --prefix="../ffmpeg_build" \
@@ -115,12 +118,10 @@ PATH="$HOME/bin:$PATH" PKG_CONFIG_PATH="$FFMPEG/ffmpeg_build/lib/pkgconfig" ./co
 PATH="$HOME/bin:$PATH" make && \
 make install && \
 hash -r && \
-rm ffmpeg_g ffplay_g ffprobe_g && \
 cd $FFMPEG/FFmpeg && \
-mv ffmpeg .. && \
-mv ffprobe .. && \
-mv ffplay .. && \
-cd $FFMPEG/aom && \
-rm -rf aom_build && \
-cd $FFMPEG/x265_git && \
-git clean -df
+mv ffmpeg ../outputs && \
+mv ffprobe ../outputs && \
+mv ffplay ../outputs && \
+mv ffmpeg_g ../debuggable_outputs && \
+mv ffprobe_g ../debuggable_outputs && \
+mv ffplay_g ../debuggable_outputs

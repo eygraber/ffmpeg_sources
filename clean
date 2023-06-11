@@ -1,5 +1,7 @@
 cd ffmpeg_build
 rm -rf *
+cd ../aom
+rm -rf aom_build
 cd ../dav1d
 rm -rf build
 cd ../fdk-aac
@@ -15,3 +17,5 @@ cd ../SVT-AV1
 rm -rf build
 cd ../x264
 make clean
+cd ../x265_git
+git clean -df

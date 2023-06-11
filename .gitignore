@@ -1,4 +1,6 @@
 ffmpeg_build/
+outputs/
+debuggable_outputs
 ffmpeg
 ffprobe
 ffplay
