@@ -4,3 +4,6 @@ debuggable_outputs
 ffmpeg
 ffprobe
 ffplay
+opus/dnn/
+opus/tests/
+aom/aom_build/
