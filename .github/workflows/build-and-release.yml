@@ -1,0 +1,60 @@
+name: Build and Release FFmpeg
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Run build script
+        run: ./build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-binaries
+          path: |
+            outputs/ffmpeg
+            outputs/ffplay
+            outputs/ffprobe
+
+  release:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-binaries
+
+      - name: Get submodule status
+        id: submodule_status
+        run: |
+          echo "status=$(git submodule status --recursive)" >> $GITHUB_OUTPUT
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ffmpeg
+            ffplay
+            ffprobe
+          body: |
+            Automated FFmpeg build.
+
+            **Submodule Versions:**
+            ```
+            ${{ steps.submodule_status.outputs.status }}
+            ```
+          tag_name: ffmpeg-build-${{ github.sha }}
+          release_name: FFmpeg Build ${{ github.sha }}
+
