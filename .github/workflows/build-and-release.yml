@@ -17,6 +17,13 @@ jobs:
       - name: Run build script
         run: ./build
 
+      - name: Upload config.log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: config-log
+          path: FFmpeg/ffbuild/config.log
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
