@@ -1,0 +1,95 @@
+name: Build and Release FFmpeg
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      # Workaround for actions/checkout@v5 not fetching submodule tags
+      - name: Fetch submodule tags
+        run: git submodule foreach --recursive git fetch --tags
+
+      - name: Run build script
+        run: ./build
+
+      - name: Upload config.log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: config-log
+          path: FFmpeg/ffbuild/config.log
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-binaries
+          path: |
+            outputs/ffmpeg
+            outputs/ffplay
+            outputs/ffprobe
+            debuggable_outputs/ffmpeg_g
+            debuggable_outputs/ffplay_g
+            debuggable_outputs/ffprobe_g
+
+  release:
+    needs: build
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          
+      # Workaround for actions/checkout@v5 not fetching submodule tags
+      - name: Fetch submodule tags
+        run: git submodule foreach --recursive git fetch --tags
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-binaries
+          path: ffmpeg-binaries
+
+      - name: Get submodule status
+        id: submodule_status
+        run: |
+          status=$(git submodule status --recursive | awk '{print substr($1,1,7), $2, $3, $4, $5, $6, $7, $8}')
+          echo "status<<EOF" >> $GITHUB_OUTPUT
+          echo "$status" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Get FFmpeg submodule tag and short SHA
+        id: ffmpeg_info
+        run: |
+          ffmpeg_tag=$(git -C FFmpeg describe --tags)
+          short_sha=$(git rev-parse --short HEAD)
+          echo "tag=$ffmpeg_tag" >> $GITHUB_OUTPUT
+          echo "short_sha=$short_sha" >> $GITHUB_OUTPUT
+
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ffmpeg-binaries/**/*
+          body: |
+            Automated FFmpeg build.
+
+            **Submodule Versions:**
+            ```
+            ${{ steps.submodule_status.outputs.status }}
+            ```
+          tag_name: ${{ steps.ffmpeg_info.outputs.tag }}-${{ steps.ffmpeg_info.outputs.short_sha }}
+          name: ${{ steps.date.outputs.date }}-${{ steps.ffmpeg_info.outputs.tag }}-${{ steps.ffmpeg_info.outputs.short_sha }}
