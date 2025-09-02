@@ -1,0 +1,112 @@
+name: Update Submodules
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 8 * * 0' # Every Sunday at 8 AM UTC
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: 'recursive'
+          token: ${{ secrets.PUSH_PAT }}
+
+      - name: Update Submodules
+        id: update_script
+        run: |
+          #!/bin/bash
+          set -e
+
+          summary_details=""
+          changes_made=false
+
+          update_submodule() {
+              local path=$1
+              local type=$2
+              local prefix=$3
+
+              echo "--- Processing submodule: $path ---"
+              cd "$path"
+
+              local current_commit_short=$(git rev-parse --short HEAD)
+
+              if [ "$type" == "branch" ]; then
+                  local branch=${prefix:-master}
+                  echo "Updating to latest from branch: $branch"
+                  git fetch origin "$branch"
+                  local latest_commit=$(git rev-parse "origin/$branch")
+                  local current_commit=$(git rev-parse HEAD)
+
+                  if [ "$current_commit" != "$latest_commit" ]; then
+                      echo "New commits found. Updating..."
+                      git checkout "$branch"
+                      git pull origin "$branch"
+                      local latest_commit_short=$(git rev-parse --short "origin/$branch")
+                      summary_details="$summary_details* **$path**: Updated from `$current_commit_short` to latest of `$branch` (`$latest_commit_short`).\n"
+                      changes_made=true
+                  else
+                      echo "Already up-to-date."
+                  fi
+              elif [ "$type" == "tag" ]; then
+                  echo "Updating to latest stable tag with prefix: '$prefix'"
+                  git fetch --tags origin
+                  
+                  local latest_tag=$(git tag -l "${prefix}*" | grep -E "^${prefix}[0-9]+(\\.[0-9]+)*$" | sort -V | tail -n 1)
+
+                  if [ -z "$latest_tag" ]; then
+                      echo "No stable tags found for $path with prefix '$prefix'. Skipping."
+                      cd ..
+                      return
+                  fi
+                  
+                  local current_commit=$(git rev-parse HEAD)
+                  local latest_tag_commit=$(git rev-parse "$latest_tag^{commit}")
+
+                  if [ "$current_commit" != "$latest_tag_commit" ]; then
+                      echo "Updating to tag $latest_tag..."
+                      git checkout "$latest_tag"
+                      summary_details="$summary_details* **$path**: Updated from `$current_commit_short` to tag `$latest_tag`.\n"
+                      changes_made=true
+                  else
+                      echo "Already on the latest stable tag."
+                  fi
+              fi
+
+              cd ..
+          }
+
+          update_submodule "x264" "branch"
+          update_submodule "x265_git" "branch"
+          update_submodule "FFmpeg" "tag" "n"
+          update_submodule "dav1d" "tag" ""
+          update_submodule "fdk-aac" "tag" "v"
+          update_submodule "aom" "tag" "v"
+          update_submodule "libvpx" "tag" "v"
+          update_submodule "opus" "tag" "v"
+          update_submodule "SVT-AV1" "tag" "v"
+
+          if [ "$changes_made" = true ]; then
+              echo "changes=true" >> $GITHUB_OUTPUT
+              {
+                  echo "pr_body<<EOF"
+                  echo -e "$summary_details"
+                  echo "EOF"
+              } >> "$GITHUB_OUTPUT"
+          else
+              echo "changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request
+        if: steps.update_script.outputs.changes == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "Update submodules"
+          title: "Update Submodules"
+          body: ${{ steps.update_script.outputs.pr_body }}
+          branch: "update-submodules"
+          delete-branch: true
+
