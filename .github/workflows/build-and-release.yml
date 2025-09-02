@@ -32,6 +32,9 @@ jobs:
             outputs/ffmpeg
             outputs/ffplay
             outputs/ffprobe
+            debuggable_outputs/ffmpeg_g
+            debuggable_outputs/ffplay_g
+            debuggable_outputs/ffprobe_g
 
   release:
     needs: build
@@ -55,6 +58,9 @@ jobs:
             ffmpeg
             ffplay
             ffprobe
+            ffmpeg_g
+            ffplay_g
+            ffprobe_g
           body: |
             Automated FFmpeg build.
 
