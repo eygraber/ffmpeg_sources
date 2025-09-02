@@ -62,7 +62,9 @@ jobs:
       - name: Get submodule status
         id: submodule_status
         run: |
-          echo "status=$(git submodule status --recursive)" >> $GITHUB_OUTPUT
+          # Use xargs to trim the leading spaces from the git submodule status output
+          submodule_output=$(git submodule status --recursive | xargs)
+          echo "status=$submodule_output" >> $GITHUB_OUTPUT
 
       - name: Release
         uses: softprops/action-gh-release@v1
