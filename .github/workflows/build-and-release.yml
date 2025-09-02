@@ -58,18 +58,28 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ffmpeg-binaries
+          path: ffmpeg-binaries
 
       - name: Get submodule status
         id: submodule_status
         run: |
-          # Use xargs to trim the leading spaces from the git submodule status output
-          submodule_output=$(git submodule status --recursive | xargs)
-          echo "status=$submodule_output" >> $GITHUB_OUTPUT
+          status=$(git submodule status --recursive | awk '{print substr($1,1,7), $2, $3, $4, $5, $6, $7, $8}')
+          echo "status<<EOF" >> $GITHUB_OUTPUT
+          echo "$status" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Get FFmpeg submodule tag and short SHA
+        id: ffmpeg_info
+        run: |
+          ffmpeg_tag=$(git -C FFmpeg describe --tags)
+          short_sha=$(git rev-parse --short HEAD)
+          echo "tag=$ffmpeg_tag" >> $GITHUB_OUTPUT
+          echo "short_sha=$short_sha" >> $GITHUB_OUTPUT
 
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          files: ffmpeg-binaries/*
+          files: ffmpeg-binaries/**/*
           body: |
             Automated FFmpeg build.
 
@@ -77,5 +87,5 @@ jobs:
             ```
             ${{ steps.submodule_status.outputs.status }}
             ```
-          tag_name: ffmpeg-build-${{ github.sha }}
-          release_name: FFmpeg Build ${{ github.sha }}
+          tag_name: ${{ steps.ffmpeg_info.outputs.tag }}-${{ steps.ffmpeg_info.outputs.short_sha }}
+          name: ${{ steps.ffmpeg_info.outputs.tag }}-${{ steps.ffmpeg_info.outputs.short_sha }}
