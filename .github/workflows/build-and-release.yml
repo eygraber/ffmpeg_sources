@@ -76,6 +76,10 @@ jobs:
           echo "tag=$ffmpeg_tag" >> $GITHUB_OUTPUT
           echo "short_sha=$short_sha" >> $GITHUB_OUTPUT
 
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
@@ -88,4 +92,4 @@ jobs:
             ${{ steps.submodule_status.outputs.status }}
             ```
           tag_name: ${{ steps.ffmpeg_info.outputs.tag }}-${{ steps.ffmpeg_info.outputs.short_sha }}
-          name: ${{ steps.ffmpeg_info.outputs.tag }}-${{ steps.ffmpeg_info.outputs.short_sha }}
+          name: ${{ steps.date.outputs.date }}-${{ steps.ffmpeg_info.outputs.tag }}-${{ steps.ffmpeg_info.outputs.short_sha }}
