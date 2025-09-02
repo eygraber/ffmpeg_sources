@@ -1,4 +1,13 @@
-sudo apt-get update -qq && sudo apt-get -y install \
+#!/bin/bash
+# Exit immediately if a command exits with a non-zero status.
+set -e
+
+# Define the build directories
+FFMPEG=$(pwd)
+
+# Install system dependencies
+sudo apt-get update -qq
+sudo apt-get -y install \
   autoconf \
   automake \
   build-essential \
@@ -16,6 +25,7 @@ sudo apt-get update -qq && sudo apt-get -y install \
   libxcb1-dev \
   libxcb-shm0-dev \
   libxcb-xfixes0-dev \
+  libnuma-dev \
   meson \
   ninja-build \
   pkg-config \
@@ -24,79 +34,103 @@ sudo apt-get update -qq && sudo apt-get -y install \
   yasm \
   zlib1g-dev \
   libunistring-dev \
-  meson \
-  yasm \
   nasm
-  
-FFMPEG=$(pwd)
 
+# Build and install x264
+echo "Building x264..."
 cd x264 && \
 PATH="$HOME/bin:$PATH" PKG_CONFIG_PATH="$FFMPEG/ffmpeg_build/lib/pkgconfig" ./configure --prefix="$FFMPEG/ffmpeg_build" --bindir="$HOME/bin" --enable-static --enable-pic && \
-PATH="$HOME/bin:$PATH" make && \
+PATH="$HOME/bin:$PATH" make -j$(nproc) && \
 make install
 
-sudo apt-get install libnuma-dev && \
-cd $FFMPEG/x265_git/build/linux && \
-PATH="$HOME/bin:$PATH" PKG_CONFIG_PATH="$FFMPEG/ffmpeg_build/lib/pkgconfig" ./multilib.sh && \
-mkdir -p $FFMPEG/ffmpeg_build/bin && \
-mkdir -p $FFMPEG/ffmpeg_build/include && \
-mkdir -p $FFMPEG/ffmpeg_build/lib && \
-mkdir -p $FFMPEG/ffmpeg_build/lib/pkgconfig && \
-sed -i "1s|.*|prefix=$FFMPEG/ffmpeg_build|" 8bit/x265.pc
-mv 8bit/x265 $FFMPEG/ffmpeg_build/bin/x265 && \
-mv 8bit/libx265.a $FFMPEG/ffmpeg_build/lib/libx265.a && \
-mv 8bit/x265.pc $FFMPEG/ffmpeg_build/lib/pkgconfig/x265.pc && \
-mv 8bit/x265_config.h $FFMPEG/ffmpeg_build/include/x265_config.h && \
-cp ../../source/x265.h $FFMPEG/ffmpeg_build/include/x265.h
+# Build and install x265 with both 8-bit, 10-bit and 12-bit support.
+echo "Building x265 with 8-bit, 10-bit, and 12-bit support..."
+cd "$FFMPEG/x265_git" && \
+mkdir -p build && \
+cd build && \
+cmake ../source -DCMAKE_INSTALL_PREFIX="$FFMPEG/ffmpeg_build" -DENABLE_SHARED=OFF -DENABLE_CLI=OFF -DHIGH_BIT_DEPTH=ON -DMAIN12=ON && \
+make -j$(nproc) && \
+make install
 
-cd $FFMPEG/fdk-aac && \
+# Manually create the x265.pc file for pkg-config, dynamically retrieving the version.
+X265_VERSION=$(cd "$FFMPEG/x265_git" && git describe --always --tags --dirty)
+mkdir -p "$FFMPEG/ffmpeg_build/lib/pkgconfig"
+cat > "$FFMPEG/ffmpeg_build/lib/pkgconfig/x265.pc" << EOF
+prefix=$FFMPEG/ffmpeg_build
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}/lib
+includedir=\${prefix}/include
+
+Name: x265
+Description: H.265/HEVC video encoder
+Version: ${X265_VERSION}
+Libs: -L\${libdir} -lx265
+Cflags: -I\${includedir}
+EOF
+
+# Build and install fdk-aac
+echo "Building fdk-aac..."
+cd "$FFMPEG/fdk-aac" && \
 autoreconf -fiv && \
 ./configure --prefix="$FFMPEG/ffmpeg_build" --disable-shared && \
-make && \
+make -j$(nproc) && \
 make install
 
-cd $FFMPEG/aom && \
+# Build and install aom
+echo "Building aom..."
+cd "$FFMPEG/aom" && \
 mkdir -p aom_build && \
 cd aom_build && \
 PATH="$HOME/bin:$PATH" cmake -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="$FFMPEG/ffmpeg_build" -DENABLE_TESTS=OFF -DENABLE_NASM=on .. && \
-PATH="$HOME/bin:$PATH" make && \
+PATH="$HOME/bin:$PATH" make -j$(nproc) && \
 make install
 
-cd $FFMPEG/dav1d && \
+# Build and install dav1d
+echo "Building dav1d..."
+cd "$FFMPEG/dav1d" && \
 mkdir -p build && \
 cd build && \
 meson setup -Denable_tools=false -Denable_tests=false --default-library=static .. --prefix "$FFMPEG/ffmpeg_build" --libdir="lib" && \
 ninja && \
 ninja install
 
-cd $FFMPEG/SVT-AV1 && \
+# Build and install SVT-AV1
+echo "Building SVT-AV1..."
+cd "$FFMPEG/SVT-AV1" && \
 mkdir -p build && \
 cd build && \
 PATH="$HOME/bin:$PATH" cmake -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="$FFMPEG/ffmpeg_build" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF .. && \
-PATH="$HOME/bin:$PATH" make && \
+PATH="$HOME/bin:$PATH" make -j$(nproc) && \
 make install
 
-cd $FFMPEG/opus && \
+# Build and install opus
+echo "Building opus..."
+cd "$FFMPEG/opus" && \
 ./autogen.sh && \
 ./configure --prefix="$FFMPEG/ffmpeg_build" --disable-shared && \
-make && \
+make -j$(nproc) && \
 make install
 
-cd $FFMPEG/libvpx && \
+# Build and install libvpx
+echo "Building libvpx..."
+cd "$FFMPEG/libvpx" && \
 PATH="$HOME/bin:$PATH" ./configure --prefix="$FFMPEG/ffmpeg_build" --disable-examples --disable-unit-tests --enable-vp9-highbitdepth --as=yasm && \
-PATH="$HOME/bin:$PATH" make && \
+PATH="$HOME/bin:$PATH" make -j$(nproc) && \
 make install
 
-mkdir -p $FFMPEG/outputs
-mkdir -p $FFMPEG/debuggable_outputs
+# Create output directories
+mkdir -p "$FFMPEG/outputs"
+mkdir -p "$FFMPEG/debuggable_outputs"
 
-cd $FFMPEG/FFmpeg && \
+# Build and install FFmpeg
+echo "Building FFmpeg..."
+cd "$FFMPEG/FFmpeg" && \
 PATH="$HOME/bin:$PATH" PKG_CONFIG_PATH="$FFMPEG/ffmpeg_build/lib/pkgconfig" ./configure \
   --prefix="../ffmpeg_build" \
   --pkg-config-flags="--static" \
   --extra-cflags="-I$FFMPEG/ffmpeg_build/include" \
   --extra-ldflags="-L$FFMPEG/ffmpeg_build/lib" \
-  --extra-libs="-lpthread -lm" \
+  --extra-libs="-lpthread -lm -lstdc++ -lnuma -lrt" \
   --ld="g++" \
   --bindir="$HOME/bin" \
   --disable-debug \
@@ -115,13 +149,16 @@ PATH="$HOME/bin:$PATH" PKG_CONFIG_PATH="$FFMPEG/ffmpeg_build/lib/pkgconfig" ./co
   --enable-libx264 \
   --enable-libx265 \
   --enable-nonfree && \
-PATH="$HOME/bin:$PATH" make && \
+PATH="$HOME/bin:$PATH" make -j$(nproc) && \
 make install && \
 hash -r && \
-cd $FFMPEG/FFmpeg && \
+cd "$FFMPEG/FFmpeg" && \
 mv ffmpeg ../outputs && \
 mv ffprobe ../outputs && \
 mv ffplay ../outputs && \
 mv ffmpeg_g ../debuggable_outputs && \
 mv ffprobe_g ../debuggable_outputs && \
 mv ffplay_g ../debuggable_outputs
+
+echo "Build complete."
+
