@@ -45,6 +45,15 @@ jobs:
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          
+      # Workaround for actions/checkout@v5 not fetching submodule tags
+      - name: Fetch submodule tags
+        run: git submodule foreach --recursive git fetch --tags
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -58,13 +67,7 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            ffmpeg
-            ffplay
-            ffprobe
-            ffmpeg_g
-            ffplay_g
-            ffprobe_g
+          files: ffmpeg-binaries/*
           body: |
             Automated FFmpeg build.
 
@@ -74,4 +77,3 @@ jobs:
             ```
           tag_name: ffmpeg-build-${{ github.sha }}
           release_name: FFmpeg Build ${{ github.sha }}
-
