@@ -21,3 +21,4 @@ cd ../x264
 make clean
 cd ../x265_git
 git clean -dfx
+git reset --hard

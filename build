@@ -46,27 +46,54 @@ make install
 # Build and install x265 with both 8-bit, 10-bit and 12-bit support.
 echo "Building x265 with 8-bit, 10-bit, and 12-bit support..."
 cd "$FFMPEG/x265_git" && \
-mkdir -p build && \
-cd build && \
-cmake ../source -DCMAKE_INSTALL_PREFIX="$FFMPEG/ffmpeg_build" -DENABLE_SHARED=OFF -DENABLE_CLI=OFF -DHIGH_BIT_DEPTH=ON -DMAIN12=ON && \
-make -j$(nproc) && \
+mkdir -p build
+cd build
+
+x265_config=(
+  -DCMAKE_INSTALL_PREFIX="$FFMPEG/ffmpeg_build"
+  -DCMAKE_BUILD_TYPE=Release
+  -DENABLE_SHARED=OFF
+  -DENABLE_CLI=OFF
+  -DCMAKE_ASM_NASM_FLAGS=-w-macro-params-legacy
+  -DENABLE_ALPHA=ON
+)
+
+sed -i '1i#include <cstdint>' ../source/dynamicHDR10/json11/json11.cpp
+
+mkdir 8bit 10bit 12bit
+cmake "${x265_config[@]}" -DHIGH_BIT_DEPTH=ON -DEXPORT_C_API=OFF -DENABLE_HDR10_PLUS=ON -DMAIN12=ON -S ../source -B 12bit &
+cmake "${x265_config[@]}" -DHIGH_BIT_DEPTH=ON -DEXPORT_C_API=OFF -DENABLE_HDR10_PLUS=ON -S ../source -B 10bit &
+cmake "${x265_config[@]}" -DEXTRA_LIB="x265_main10.a;x265_main12.a" -DEXTRA_LINK_FLAGS=-L. -DLINKED_10BIT=ON -DLINKED_12BIT=ON -S ../source -B 8bit &
+wait
+
+cat >Makefile <<"EOF"
+all: 12bit/libx265.a 10bit/libx265.a 8bit/libx265.a
+
+%/libx265.a:
+	$(MAKE) -C $(subst /libx265.a,,$@)
+
+.PHONY: all
+EOF
+
+make -j$(nproc)
+
+cd 8bit
+mv ../12bit/libx265.a ../8bit/libx265_main12.a
+mv ../10bit/libx265.a ../8bit/libx265_main10.a
+mv libx265.a libx265_main.a
+
+gcc-ar -M <<EOF
+CREATE libx265.a
+ADDLIB libx265_main.a
+ADDLIB libx265_main10.a
+ADDLIB libx265_main12.a
+SAVE
+END
+EOF
+
 make install
 
-# Manually create the x265.pc file for pkg-config, dynamically retrieving the version.
-X265_VERSION=$(cd "$FFMPEG/x265_git" && git describe --always --tags --dirty)
-mkdir -p "$FFMPEG/ffmpeg_build/lib/pkgconfig"
-cat > "$FFMPEG/ffmpeg_build/lib/pkgconfig/x265.pc" << EOF
-prefix=$FFMPEG/ffmpeg_build
-exec_prefix=\${prefix}
-libdir=\${exec_prefix}/lib
-includedir=\${prefix}/include
-
-Name: x265
-Description: H.265/HEVC video encoder
-Version: ${X265_VERSION}
-Libs: -L\${libdir} -lx265
-Cflags: -I\${includedir}
-EOF
+echo "Libs.private: -lstdc++" >> "$FFMPEG/ffmpeg_build/lib/pkgconfig/x265.pc"
 
 # Build and install fdk-aac
 echo "Building fdk-aac..."
