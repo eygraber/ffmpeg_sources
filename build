@@ -93,7 +93,22 @@ EOF
 
 make install
 
-echo "Libs.private: -lstdc++" >> "$FFMPEG/ffmpeg_build/lib/pkgconfig/x265.pc"
+# Manually create the x265.pc file for pkg-config, dynamically retrieving the version.
+X265_VERSION=$(cd "$FFMPEG/x265_git" && git describe --always --tags --dirty)
+mkdir -p "$FFMPEG/ffmpeg_build/lib/pkgconfig"
+cat > "$FFMPEG/ffmpeg_build/lib/pkgconfig/x265.pc" << EOF
+prefix=$FFMPEG/ffmpeg_build
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}/lib
+includedir=\${prefix}/include
+
+Name: x265
+Description: H.265/HEVC video encoder
+Version: ${X265_VERSION}
+Libs: -L\${libdir} -lx265
+Libs.private: -lstdc++
+Cflags: -I\${includedir}
+EOF
 
 # Build and install fdk-aac
 echo "Building fdk-aac..."
